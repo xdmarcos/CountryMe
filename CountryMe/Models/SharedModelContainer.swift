@@ -22,7 +22,7 @@ enum SharedModelContainer {
     static let cloudKitContainerIdentifier = "iCloud.gz.xdmdev.CountryMe"
 
     static let shared: ModelContainer = {
-        let schema = Schema([CountryStay.self, VisitDay.self])
+        let schema = Schema(versionedSchema: CountryMeSchemaV1.self)
         let configuration = ModelConfiguration(
             schema: schema,
             groupContainer: .identifier(appGroupIdentifier),
@@ -30,7 +30,7 @@ enum SharedModelContainer {
         )
 
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            return try ModelContainer(for: schema, migrationPlan: CountryMeMigrationPlan.self, configurations: [configuration])
         } catch {
             fatalError("Could not create shared ModelContainer: \(error)")
         }

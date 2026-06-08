@@ -15,17 +15,13 @@ import SwiftData
 /// detected before that still show an accurate `dayCount` but may have a sparse or empty
 /// history list. That's expected, not a bug; the empty-state message below explains it.
 struct CountryDetailView: View {
-    let stay: CountryStay
+    private let viewModel: CountryDetailViewModel
 
-    private var sortedVisitDays: [VisitDay] {
-        (stay.visitDays ?? []).sorted { $0.day > $1.day }
+    init(stay: CountryStay) {
+        viewModel = CountryDetailViewModel(stay: stay)
     }
 
-    /// Whole days between first and last detection — a rough "span" independent of `dayCount`
-    /// (which counts *distinct* days, not the length of the date range).
-    private var spanDays: Int {
-        Calendar.current.dateComponents([.day], from: stay.firstSeen, to: stay.lastSeen).day ?? 0
-    }
+    private var stay: CountryStay { viewModel.stay }
 
     var body: some View {
         List {
@@ -36,7 +32,7 @@ struct CountryDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(stay.countryName)
                             .font(.title2.bold())
-                        Text("\(stay.dayCount) day\(stay.dayCount == 1 ? "" : "s") spent here")
+                        Text(viewModel.dayCountSummary)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -47,16 +43,16 @@ struct CountryDetailView: View {
             Section("Summary") {
                 LabeledContent("First seen", value: stay.firstSeen.formatted(date: .abbreviated, time: .omitted))
                 LabeledContent("Last seen", value: stay.lastSeen.formatted(date: .abbreviated, time: .omitted))
-                LabeledContent("Span", value: "\(spanDays) day\(spanDays == 1 ? "" : "s")")
+                LabeledContent("Span", value: viewModel.spanSummary)
             }
 
             Section("History") {
-                if sortedVisitDays.isEmpty {
+                if viewModel.sortedVisitDays.isEmpty {
                     Text("No day-by-day history recorded yet — CountryMe only started keeping a detailed log recently, so older stays only have a running total.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(sortedVisitDays) { visitDay in
+                    ForEach(viewModel.sortedVisitDays) { visitDay in
                         Text(visitDay.day.formatted(date: .complete, time: .omitted))
                     }
                 }

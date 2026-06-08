@@ -79,9 +79,10 @@
 		7AA73DE82FD6E45900F09507 /* Exceptions for "CountryMe" folder in "CountryMeWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CountryFlag.swift,
-				CountryStay.swift,
-				SharedModelContainer.swift,
+				Models/CountryFlag.swift,
+				Models/CountryMeSchema.swift,
+				Models/CountryStay.swift,
+				Models/SharedModelContainer.swift,
 			);
 			target = 7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */;
 		};
