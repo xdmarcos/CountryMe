@@ -17,7 +17,7 @@ struct CountryMeTests {
 
     private func makeContext() throws -> ModelContext {
         let container = try ModelContainer(
-            for: CountryStay.self,
+            for: CountryStay.self, VisitDay.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         return ModelContext(container)
@@ -61,6 +61,68 @@ struct CountryMeTests {
         #expect(stay.dayCount == 2)
         #expect(stay.firstSeen == day1)
         #expect(stay.lastSeen == day2)
+    }
+
+    @Test func newCountryCreatesOneVisitDay() throws {
+        let context = try makeContext()
+        let calendar = Calendar(identifier: .gregorian)
+        let date = calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 8))!
+
+        let stay = try recordDetection(countryCode: "ES", countryName: "Spain", date: date, in: context, calendar: calendar)
+
+        let visitDays = stay.visitDays ?? []
+        #expect(visitDays.count == 1)
+        #expect(visitDays.first?.day == calendar.startOfDay(for: date))
+        #expect(visitDays.count == stay.dayCount)
+    }
+
+    @Test func sameCountrySameDayDoesNotAddAnotherVisitDay() throws {
+        let context = try makeContext()
+        let calendar = Calendar(identifier: .gregorian)
+        let morning = calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 8))!
+        let evening = calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 20))!
+
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: morning, in: context, calendar: calendar)
+        let stay = try recordDetection(countryCode: "ES", countryName: "Spain", date: evening, in: context, calendar: calendar)
+
+        let visitDays = stay.visitDays ?? []
+        #expect(visitDays.count == 1)
+        #expect(visitDays.count == stay.dayCount)
+    }
+
+    @Test func sameCountryOnANewDayAddsAnotherVisitDay() throws {
+        let context = try makeContext()
+        let calendar = Calendar(identifier: .gregorian)
+        let day1 = calendar.date(from: DateComponents(year: 2026, month: 6, day: 8))!
+        let day2 = calendar.date(from: DateComponents(year: 2026, month: 6, day: 9))!
+
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: day1, in: context, calendar: calendar)
+        let stay = try recordDetection(countryCode: "ES", countryName: "Spain", date: day2, in: context, calendar: calendar)
+
+        let visitDays = (stay.visitDays ?? []).sorted { $0.day < $1.day }
+        #expect(visitDays.count == 2)
+        #expect(visitDays.map(\.day) == [calendar.startOfDay(for: day1), calendar.startOfDay(for: day2)])
+        #expect(visitDays.count == stay.dayCount)
+    }
+
+    @Test func visitDayCountTracksDayCountAcrossManyDetections() throws {
+        let context = try makeContext()
+        let calendar = Calendar(identifier: .gregorian)
+        var stay: CountryStay?
+
+        // Two detections per day across four days — dayCount and visitDays.count should both
+        // land on 4, never on 8.
+        for day in 8...11 {
+            for hour in [8, 20] {
+                let date = calendar.date(from: DateComponents(year: 2026, month: 6, day: day, hour: hour))!
+                stay = try recordDetection(countryCode: "ES", countryName: "Spain", date: date, in: context, calendar: calendar)
+            }
+        }
+
+        let result = try #require(stay)
+        #expect(result.dayCount == 4)
+        #expect((result.visitDays ?? []).count == 4)
+        #expect((result.visitDays ?? []).count == result.dayCount)
     }
 
     @Test func differentCountriesGetSeparateRows() throws {

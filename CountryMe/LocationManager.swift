@@ -64,6 +64,13 @@ final class LocationManager: NSObject, ObservableObject {
     /// launch — it's a no-op once already authorized and monitoring.
     func start() {
         #if os(iOS)
+        // Ensures background delivery keeps working consistently across iOS versions/devices —
+        // significant-change monitoring is documented to wake the app while suspended/terminated
+        // without this, but this flag makes that behavior explicit and reliable rather than
+        // relying on undocumented defaults. Requires "Always" authorization plus the `location`
+        // background mode (already declared in Info.plist) or it's a no-op.
+        manager.allowsBackgroundLocationUpdates = true
+
         switch manager.authorizationStatus {
         case .notDetermined:
             manager.requestAlwaysAuthorization()
