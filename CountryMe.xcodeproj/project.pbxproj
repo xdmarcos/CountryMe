@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7AA73D2A2FD6DD4B00F09507 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7AA73D292FD6DD4B00F09507 /* WidgetKit.framework */; };
+		7AA73D2C2FD6DD4B00F09507 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7AA73D2B2FD6DD4B00F09507 /* SwiftUI.framework */; };
+		7AA73D3D2FD6DD4C00F09507 /* CountryMeWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7AA73D272FD6DD4B00F09507 /* CountryMeWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7AA73CD62FD6D1F600F09507 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +27,37 @@
 			remoteGlobalIDString = 7AA73CC32FD6D1F500F09507;
 			remoteInfo = CountryMe;
 		};
+		7AA73D3B2FD6DD4C00F09507 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7AA73CBC2FD6D1F500F09507 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7AA73D262FD6DD4B00F09507;
+			remoteInfo = CountryMeWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7AA73D3E2FD6DD4C00F09507 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				7AA73D3D2FD6DD4C00F09507 /* CountryMeWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7AA73CC42FD6D1F500F09507 /* CountryMe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CountryMe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AA73CD52FD6D1F600F09507 /* CountryMeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CountryMeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AA73CDF2FD6D1F600F09507 /* CountryMeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CountryMeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7AA73D272FD6DD4B00F09507 /* CountryMeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CountryMeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7AA73D292FD6DD4B00F09507 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		7AA73D2B2FD6DD4B00F09507 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		7AA73DE62FD6DFD900F09507 /* CountryMeWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CountryMeWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -37,6 +68,22 @@
 			);
 			target = 7AA73CC32FD6D1F500F09507 /* CountryMe */;
 		};
+		7AA73D422FD6DD4C00F09507 /* Exceptions for "CountryMeWidget" folder in "CountryMeWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */;
+		};
+		7AA73DE82FD6E45900F09507 /* Exceptions for "CountryMe" folder in "CountryMeWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CountryFlag.swift,
+				CountryStay.swift,
+				SharedModelContainer.swift,
+			);
+			target = 7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +91,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				7AA73CE72FD6D1F600F09507 /* Exceptions for "CountryMe" folder in "CountryMe" target */,
+				7AA73DE82FD6E45900F09507 /* Exceptions for "CountryMe" folder in "CountryMeWidgetExtension" target */,
 			);
 			path = CountryMe;
 			sourceTree = "<group>";
@@ -56,6 +104,14 @@
 		7AA73CE22FD6D1F600F09507 /* CountryMeUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CountryMeUITests;
+			sourceTree = "<group>";
+		};
+		7AA73D2D2FD6DD4B00F09507 /* CountryMeWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7AA73D422FD6DD4C00F09507 /* Exceptions for "CountryMeWidget" folder in "CountryMeWidgetExtension" target */,
+			);
+			path = CountryMeWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,15 +138,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7AA73D242FD6DD4B00F09507 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7AA73D2C2FD6DD4B00F09507 /* SwiftUI.framework in Frameworks */,
+				7AA73D2A2FD6DD4B00F09507 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		7AA73CBB2FD6D1F500F09507 = {
 			isa = PBXGroup;
 			children = (
+				7AA73DE62FD6DFD900F09507 /* CountryMeWidgetExtension.entitlements */,
 				7AA73CC62FD6D1F500F09507 /* CountryMe */,
 				7AA73CD82FD6D1F600F09507 /* CountryMeTests */,
 				7AA73CE22FD6D1F600F09507 /* CountryMeUITests */,
+				7AA73D2D2FD6DD4B00F09507 /* CountryMeWidget */,
+				7AA73D282FD6DD4B00F09507 /* Frameworks */,
 				7AA73CC52FD6D1F500F09507 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +169,18 @@
 				7AA73CC42FD6D1F500F09507 /* CountryMe.app */,
 				7AA73CD52FD6D1F600F09507 /* CountryMeTests.xctest */,
 				7AA73CDF2FD6D1F600F09507 /* CountryMeUITests.xctest */,
+				7AA73D272FD6DD4B00F09507 /* CountryMeWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7AA73D282FD6DD4B00F09507 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7AA73D292FD6DD4B00F09507 /* WidgetKit.framework */,
+				7AA73D2B2FD6DD4B00F09507 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,10 +193,12 @@
 				7AA73CC02FD6D1F500F09507 /* Sources */,
 				7AA73CC12FD6D1F500F09507 /* Frameworks */,
 				7AA73CC22FD6D1F500F09507 /* Resources */,
+				7AA73D3E2FD6DD4C00F09507 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7AA73D3C2FD6DD4C00F09507 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7AA73CC62FD6D1F500F09507 /* CountryMe */,
@@ -176,6 +256,28 @@
 			productReference = 7AA73CDF2FD6D1F600F09507 /* CountryMeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7AA73D412FD6DD4C00F09507 /* Build configuration list for PBXNativeTarget "CountryMeWidgetExtension" */;
+			buildPhases = (
+				7AA73D232FD6DD4B00F09507 /* Sources */,
+				7AA73D242FD6DD4B00F09507 /* Frameworks */,
+				7AA73D252FD6DD4B00F09507 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7AA73D2D2FD6DD4B00F09507 /* CountryMeWidget */,
+			);
+			name = CountryMeWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = CountryMeWidgetExtension;
+			productReference = 7AA73D272FD6DD4B00F09507 /* CountryMeWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +299,9 @@
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 7AA73CC32FD6D1F500F09507;
 					};
+					7AA73D262FD6DD4B00F09507 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 				};
 			};
 			buildConfigurationList = 7AA73CBF2FD6D1F500F09507 /* Build configuration list for PBXProject "CountryMe" */;
@@ -216,6 +321,7 @@
 				7AA73CC32FD6D1F500F09507 /* CountryMe */,
 				7AA73CD42FD6D1F600F09507 /* CountryMeTests */,
 				7AA73CDE2FD6D1F600F09507 /* CountryMeUITests */,
+				7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +342,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7AA73CDD2FD6D1F600F09507 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7AA73D252FD6DD4B00F09507 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +379,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7AA73D232FD6DD4B00F09507 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +399,11 @@
 			target = 7AA73CC32FD6D1F500F09507 /* CountryMe */;
 			targetProxy = 7AA73CE02FD6D1F600F09507 /* PBXContainerItemProxy */;
 		};
+		7AA73D3C2FD6DD4C00F09507 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7AA73D262FD6DD4B00F09507 /* CountryMeWidgetExtension */;
+			targetProxy = 7AA73D3B2FD6DD4C00F09507 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -287,6 +412,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CountryMe/CountryMe.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BSYPP7R75C;
@@ -332,6 +458,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CountryMe/CountryMe.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BSYPP7R75C;
@@ -590,6 +717,73 @@
 			};
 			name = Release;
 		};
+		7AA73D3F2FD6DD4C00F09507 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CountryMeWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BSYPP7R75C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CountryMeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CountryMeWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = gz.xdmdev.CountryMe.CountryMeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7AA73D402FD6DD4C00F09507 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CountryMeWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BSYPP7R75C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CountryMeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CountryMeWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = gz.xdmdev.CountryMe.CountryMeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -625,6 +819,15 @@
 			buildConfigurations = (
 				7AA73CF12FD6D1F600F09507 /* Debug */,
 				7AA73CF22FD6D1F600F09507 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7AA73D412FD6DD4C00F09507 /* Build configuration list for PBXNativeTarget "CountryMeWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7AA73D3F2FD6DD4C00F09507 /* Debug */,
+				7AA73D402FD6DD4C00F09507 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

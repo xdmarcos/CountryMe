@@ -5,6 +5,11 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>location</string>
 	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>CountryMe tracks which country you're in — including in the background — so it can keep an accurate log of days spent per country and show it in the widget.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CountryMe uses your location to detect which country you're currently in.</string>
 </dict>
 </plist>
