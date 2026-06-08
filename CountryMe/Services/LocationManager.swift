@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Combine
+import Observation
 import CoreLocation
 import SwiftData
 import WidgetKit
@@ -58,25 +58,26 @@ func locationStartAction(for status: CLAuthorizationStatus) -> LocationStartActi
 /// whole tracking implementation is guarded by `#if os(iOS)`; other platforms compile with a
 /// stub that reports `.notDetermined` and does nothing — per "start simple", active tracking on
 /// macOS/visionOS can come later.
-// Note: `objectWillChange` is declared explicitly (instead of relying on `@Published` to
-// synthesize it) and the published values use plain `willSet` hooks. Under this target's
-// `default-isolation=MainActor`, an `NSObject` subclass with `@Published` properties fails to
-// synthesize the `ObservableObject` conformance ("does not conform to protocol
-// 'ObservableObject'") — Combine's property-wrapper synthesis doesn't play well with `@objc`
-// dynamism plus global-actor isolation. Manual `objectWillChange.send()` sidesteps it.
-final class LocationManager: NSObject, ObservableObject {
-    let objectWillChange = ObservableObjectPublisher()
+@Observable
+final class LocationManager: NSObject {
+    private(set) var authorizationStatus: CLAuthorizationStatus
+    private(set) var lastError: String?
 
-    private(set) var authorizationStatus: CLAuthorizationStatus {
-        willSet { objectWillChange.send() }
-    }
-    private(set) var lastError: String? {
-        willSet { objectWillChange.send() }
+    /// What `CLLocationManagerDelegate` reports, funneled through a single `AsyncStream` so one
+    /// `for await` loop can apply every update on the main actor — replacing a `Task { @MainActor
+    /// in … }` hop per callback with one long-running consumer.
+    private enum LocationEvent {
+        case authorization(CLAuthorizationStatus)
+        case location(CLLocation)
+        case failure(String)
     }
 
     #if os(iOS)
     private let manager = CLLocationManager()
     private let geocoder = CLGeocoder()
+    private let events: AsyncStream<LocationEvent>
+    private let continuation: AsyncStream<LocationEvent>.Continuation
+    @ObservationIgnored private var consumerTask: Task<Void, Never>?
     #endif
     private let modelContainer: ModelContainer
 
@@ -87,14 +88,25 @@ final class LocationManager: NSObject, ObservableObject {
         self.modelContainer = modelContainer ?? SharedModelContainer.shared
         #if os(iOS)
         self.authorizationStatus = manager.authorizationStatus
+        let (events, continuation) = AsyncStream.makeStream(of: LocationEvent.self)
+        self.events = events
+        self.continuation = continuation
         #else
         self.authorizationStatus = .notDetermined
         #endif
         super.init()
         #if os(iOS)
         manager.delegate = self
+        startConsuming()
         #endif
     }
+
+    #if os(iOS)
+    deinit {
+        continuation.finish()
+        consumerTask?.cancel()
+    }
+    #endif
 
     /// Requests "Always" permission (so monitoring survives the app being closed) and, once
     /// granted, starts significant-change monitoring. Safe to call repeatedly — e.g. on every
@@ -117,23 +129,58 @@ final class LocationManager: NSObject, ObservableObject {
     }
 
     #if os(iOS)
-    private func handle(_ location: CLLocation) {
-        Task {
-            do {
-                let placemarks = try await geocoder.reverseGeocodeLocation(location)
-                guard let placemark = placemarks.first, let code = placemark.isoCountryCode else {
-                    return
+    /// The single consumer of `events` — applies every authorization change, location, and
+    /// error on the main actor, in arrival order. Replaces the old per-callback `Task { @MainActor
+    /// in … }` spawns with one long-running loop that exits when `continuation.finish()` runs
+    /// (in `deinit`) or the task is cancelled.
+    private func startConsuming() {
+        consumerTask = Task { [weak self] in
+            guard let self else { return }
+            for await event in self.events {
+                switch event {
+                case .authorization(let status):
+                    self.authorizationStatus = status
+                    self.applyAuthorization(status)
+                case .location(let location):
+                    await self.handle(location)
+                case .failure(let message):
+                    self.lastError = message
                 }
-                let name = placemark.country ?? code
-
-                let context = ModelContext(modelContainer)
-                try recordDetection(countryCode: code, countryName: name, date: location.timestamp, in: context)
-                try context.save()
-
-                WidgetCenter.shared.reloadAllTimelines()
-            } catch {
-                lastError = error.localizedDescription
             }
+        }
+    }
+
+    /// Reacts to an authorization change that happens while the app is already running — e.g.
+    /// the user upgrades permission via Settings — without waiting for the next `start()`.
+    /// Mirrors the rules in `locationStartAction(for:)`: `allowsBackgroundLocationUpdates` is
+    /// only safe to set under `.authorizedAlways`.
+    private func applyAuthorization(_ status: CLAuthorizationStatus) {
+        switch status {
+        case .authorizedAlways:
+            manager.allowsBackgroundLocationUpdates = true
+            manager.startMonitoringSignificantLocationChanges()
+        case .authorizedWhenInUse:
+            manager.startMonitoringSignificantLocationChanges()
+        default:
+            break
+        }
+    }
+
+    private func handle(_ location: CLLocation) async {
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            guard let placemark = placemarks.first, let code = placemark.isoCountryCode else {
+                return
+            }
+            let name = placemark.country ?? code
+
+            let context = ModelContext(modelContainer)
+            try recordDetection(countryCode: code, countryName: name, date: location.timestamp, in: context)
+            try context.save()
+
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            lastError = error.localizedDescription
         }
     }
     #endif
@@ -142,36 +189,20 @@ final class LocationManager: NSObject, ObservableObject {
 #if os(iOS)
 extension LocationManager: CLLocationManagerDelegate {
     // CLLocationManagerDelegate callbacks can arrive on a background queue, so these are
-    // `nonisolated` and hop back to the main actor before touching `self`'s state.
+    // `nonisolated` — they only touch the `Sendable` `continuation`, never observable state,
+    // and simply yield events for `startConsuming()`'s main-actor loop to apply in order.
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status = manager.authorizationStatus
-        Task { @MainActor in
-            authorizationStatus = status
-            if status == .authorizedAlways {
-                // Only safe to set once "Always" is actually granted (see `start()`) — this
-                // catches the case where the user upgrades permission via Settings while the
-                // app is already running, so we don't have to wait for the next `start()`.
-                manager.allowsBackgroundLocationUpdates = true
-                manager.startMonitoringSignificantLocationChanges()
-            } else if status == .authorizedWhenInUse {
-                manager.startMonitoringSignificantLocationChanges()
-            }
-        }
+        continuation.yield(.authorization(manager.authorizationStatus))
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newest = locations.max(by: { $0.timestamp < $1.timestamp }) else { return }
-        Task { @MainActor in
-            handle(newest)
-        }
+        continuation.yield(.location(newest))
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        let message = error.localizedDescription
-        Task { @MainActor in
-            lastError = message
-        }
+        continuation.yield(.failure(error.localizedDescription))
     }
 }
 #endif

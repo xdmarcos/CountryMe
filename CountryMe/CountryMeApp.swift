@@ -10,12 +10,12 @@ import SwiftData
 
 @main
 struct CountryMeApp: App {
-    @StateObject private var locationManager = LocationManager()
+    @State private var locationManager = LocationManager()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(locationManager)
+                .environment(locationManager)
                 .onAppear { locationManager.start() }
         }
         .modelContainer(SharedModelContainer.shared)

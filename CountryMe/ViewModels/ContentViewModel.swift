@@ -42,7 +42,7 @@ func authorizationGuidance(for status: CLAuthorizationStatus) -> AuthorizationGu
 
 /// Presentation logic for `ContentView`.
 ///
-/// `ContentView` owns the SwiftUI/SwiftData property wrappers (`@Query`, `@EnvironmentObject`)
+/// `ContentView` owns the SwiftUI/SwiftData property wrappers (`@Query`, `@Environment`)
 /// that only work bound to a view's environment, and feeds their output through this type —
 /// keeping the actual derivation (which stay is "current", what the permission banner should
 /// say) in one pure, unit-testable place rather than scattered across view computed properties.

@@ -13,7 +13,7 @@ import UIKit
 #endif
 
 struct ContentView: View {
-    @EnvironmentObject private var locationManager: LocationManager
+    @Environment(LocationManager.self) private var locationManager
     @Environment(\.openURL) private var openURL
     @Query(sort: \CountryStay.dayCount, order: .reverse) private var stays: [CountryStay]
 
@@ -187,7 +187,7 @@ fileprivate struct NavigationViewWrapper<Content: View>: View {
 
 #Preview {
     ContentView()
-        .environmentObject(LocationManager(modelContainer: try! ModelContainer(
+        .environment(LocationManager(modelContainer: try! ModelContainer(
             for: CountryStay.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )))
