@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import CoreLocation
+import MapKit
 import SwiftData
 import WidgetKit
 
@@ -74,7 +75,6 @@ final class LocationManager: NSObject {
 
     #if os(iOS)
     private let manager = CLLocationManager()
-    private let geocoder = CLGeocoder()
     private let events: AsyncStream<LocationEvent>
     private let continuation: AsyncStream<LocationEvent>.Continuation
     @ObservationIgnored private var consumerTask: Task<Void, Never>?
@@ -168,14 +168,26 @@ final class LocationManager: NSObject {
 
     private func handle(_ location: CLLocation) async {
         do {
-            let placemarks = try await geocoder.reverseGeocodeLocation(location)
-            guard let placemark = placemarks.first, let code = placemark.isoCountryCode else {
+            // `CLGeocoder.reverseGeocodeLocation` is deprecated in favor of MapKit's reverse
+            // geocoding request. `region` is a `Locale.Region` whose `identifier` is the ISO
+            // 3166-1 alpha-2 code (e.g. "ES") — the MapKit equivalent of `CLPlacemark.isoCountryCode`.
+            guard let request = MKReverseGeocodingRequest(location: location) else { return }
+            let mapItems = try await request.mapItems
+            guard let representations = mapItems.first?.addressRepresentations,
+                  let region = representations.region else {
                 return
             }
-            let name = placemark.country ?? code
+            let code = region.identifier
+            let name = representations.regionName ?? code
 
             let context = ModelContext(modelContainer)
-            try recordDetection(countryCode: code, countryName: name, date: location.timestamp, in: context)
+            try recordDetection(
+                countryCode: code,
+                countryName: name,
+                coordinate: location.coordinate,
+                date: location.timestamp,
+                in: context
+            )
             try context.save()
 
             WidgetCenter.shared.reloadAllTimelines()

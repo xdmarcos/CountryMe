@@ -5,6 +5,7 @@
 //  Created by xdmGzDev on 08/06/2026.
 //
 
+import CoreLocation
 import Foundation
 import SwiftData
 
@@ -63,10 +64,29 @@ final class CountryStay {
 final class VisitDay {
     /// Start-of-day (calendar-normalized) timestamp this country was detected on.
     var day: Date = Date.distantPast
+    /// Where this detection occurred, decomposed into `Double` components — `CLLocationCoordinate2D`
+    /// itself isn't `Codable`/storable in SwiftData. `(0, 0)` (off the coast of Ghana) is the
+    /// "not recorded" sentinel for rows created before this existed, mirroring `CountryStay`'s
+    /// use of `.distantPast` for unknown dates. Recorded so a detection can later be checked
+    /// against the claimed country's actual borders — reverse geocoding can misattribute points
+    /// near coastlines and land borders.
+    var latitude: Double = 0
+    var longitude: Double = 0
     var country: CountryStay?
 
-    init(day: Date = .distantPast, country: CountryStay? = nil) {
+    /// Convenience view of `latitude`/`longitude` for use with CoreLocation/MapKit APIs.
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    init(
+        day: Date = .distantPast,
+        coordinate: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 0, longitude: 0),
+        country: CountryStay? = nil
+    ) {
         self.day = day
+        self.latitude = coordinate.latitude
+        self.longitude = coordinate.longitude
         self.country = country
     }
 }
@@ -77,11 +97,13 @@ final class VisitDay {
 /// `dayCount` is incremented only the first time a country is seen on a given calendar day —
 /// repeated detections on the same day update `lastSeen` but don't inflate the count. Kept as
 /// a free function (rather than buried in `LocationManager`) so it can be unit tested with an
-/// in-memory `ModelContext` without any CoreLocation involvement.
+/// in-memory `ModelContext` without any location-services involvement — `coordinate` is a
+/// plain value type, trivial to construct in tests without `CLLocationManager`/permissions.
 @discardableResult
 func recordDetection(
     countryCode: String,
     countryName: String,
+    coordinate: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 0, longitude: 0),
     date: Date = .now,
     in context: ModelContext,
     calendar: Calendar = .current
@@ -93,7 +115,7 @@ func recordDetection(
     if let existing = try context.fetch(descriptor).first {
         if !calendar.isDate(existing.lastSeen, inSameDayAs: date) {
             existing.dayCount += 1
-            let visitDay = VisitDay(day: calendar.startOfDay(for: date), country: existing)
+            let visitDay = VisitDay(day: calendar.startOfDay(for: date), coordinate: coordinate, country: existing)
             context.insert(visitDay)
             existing.visitDays?.append(visitDay)
         }
@@ -111,7 +133,7 @@ func recordDetection(
             lastSeen: date
         )
         context.insert(stay)
-        let visitDay = VisitDay(day: calendar.startOfDay(for: date), country: stay)
+        let visitDay = VisitDay(day: calendar.startOfDay(for: date), coordinate: coordinate, country: stay)
         context.insert(visitDay)
         stay.visitDays?.append(visitDay)
         return stay
