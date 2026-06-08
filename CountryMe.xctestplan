@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "EA571030-4F93-40FE-AFD8-93DD78A87362",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:CountryMe.xcodeproj",
+      "identifier" : "7AA73CC32FD6D1F500F09507",
+      "name" : "CountryMe"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:CountryMe.xcodeproj",
+        "identifier" : "7AA73CD42FD6D1F600F09507",
+        "name" : "CountryMeTests"
+      }
+    }
+  ],
+  "version" : 1
+}

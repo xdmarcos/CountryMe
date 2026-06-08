@@ -51,6 +51,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7A1177C22FD71F25008D667C /* CountryMe.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = CountryMe.xctestplan; sourceTree = "<group>"; };
 		7AA73CC42FD6D1F500F09507 /* CountryMe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CountryMe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AA73CD52FD6D1F600F09507 /* CountryMeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CountryMeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AA73CDF2FD6D1F600F09507 /* CountryMeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CountryMeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +154,7 @@
 		7AA73CBB2FD6D1F500F09507 = {
 			isa = PBXGroup;
 			children = (
+				7A1177C22FD71F25008D667C /* CountryMe.xctestplan */,
 				7AA73DE62FD6DFD900F09507 /* CountryMeWidgetExtension.entitlements */,
 				7AA73CC62FD6D1F500F09507 /* CountryMe */,
 				7AA73CD82FD6D1F600F09507 /* CountryMeTests */,

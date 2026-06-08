@@ -11,6 +11,43 @@ import CoreLocation
 import SwiftData
 import WidgetKit
 
+/// What `LocationManager.start()` should do for a given CoreLocation authorization status.
+///
+/// Extracted into a pure function (`locationStartAction(for:)`) so this branching — including
+/// the crash-prevention rule that `enableBackgroundUpdatesAndMonitor` is reachable *only* from
+/// `.authorizedAlways` — is unit-testable without a real, unmockable `CLLocationManager`.
+enum LocationStartAction: Equatable {
+    /// `.notDetermined` — the only status from which the in-app system permission prompt
+    /// can still appear.
+    case requestAuthorization
+    /// `.authorizedWhenInUse` — ask for the upgrade to "Always" (iOS shows that dialog at
+    /// most once per install) and start monitoring in the meantime so tracking isn't idle
+    /// while the user decides.
+    case requestUpgradeAndMonitor
+    /// `.authorizedAlways` — the *only* status from which `allowsBackgroundLocationUpdates`
+    /// may be set to `true`; setting it any earlier crashes the app synchronously with an
+    /// `NSInternalInconsistencyException`, before any permission prompt can appear.
+    case enableBackgroundUpdatesAndMonitor
+    /// `.denied` / `.restricted` (and any future unknown case) — nothing achievable
+    /// in-process; the user has to go through Settings.
+    case doNothing
+}
+
+func locationStartAction(for status: CLAuthorizationStatus) -> LocationStartAction {
+    switch status {
+    case .notDetermined:
+        return .requestAuthorization
+    case .authorizedWhenInUse:
+        return .requestUpgradeAndMonitor
+    case .authorizedAlways:
+        return .enableBackgroundUpdatesAndMonitor
+    case .denied, .restricted:
+        return .doNothing
+    @unknown default:
+        return .doNothing
+    }
+}
+
 /// Watches for significant location changes, reverse-geocodes them to a country, and records
 /// the detection into the shared SwiftData store.
 ///
@@ -64,26 +101,16 @@ final class LocationManager: NSObject, ObservableObject {
     /// launch — it's a no-op once already authorized and monitoring.
     func start() {
         #if os(iOS)
-        // Ensures background delivery keeps working consistently across iOS versions/devices —
-        // significant-change monitoring is documented to wake the app while suspended/terminated
-        // without this, but this flag makes that behavior explicit and reliable rather than
-        // relying on undocumented defaults. Requires "Always" authorization plus the `location`
-        // background mode (already declared in Info.plist) or it's a no-op.
-        manager.allowsBackgroundLocationUpdates = true
-
-        switch manager.authorizationStatus {
-        case .notDetermined:
+        switch locationStartAction(for: manager.authorizationStatus) {
+        case .requestAuthorization:
             manager.requestAlwaysAuthorization()
-        case .authorizedWhenInUse:
-            // Ask to upgrade to "Always" so tracking continues in the background; start
-            // monitoring in the meantime so we're not idle while the user decides.
+        case .requestUpgradeAndMonitor:
             manager.requestAlwaysAuthorization()
             manager.startMonitoringSignificantLocationChanges()
-        case .authorizedAlways:
+        case .enableBackgroundUpdatesAndMonitor:
+            manager.allowsBackgroundLocationUpdates = true
             manager.startMonitoringSignificantLocationChanges()
-        case .denied, .restricted:
-            break
-        @unknown default:
+        case .doNothing:
             break
         }
         #endif
@@ -121,7 +148,13 @@ extension LocationManager: CLLocationManagerDelegate {
         let status = manager.authorizationStatus
         Task { @MainActor in
             authorizationStatus = status
-            if status == .authorizedAlways || status == .authorizedWhenInUse {
+            if status == .authorizedAlways {
+                // Only safe to set once "Always" is actually granted (see `start()`) — this
+                // catches the case where the user upgrades permission via Settings while the
+                // app is already running, so we don't have to wait for the next `start()`.
+                manager.allowsBackgroundLocationUpdates = true
+                manager.startMonitoringSignificantLocationChanges()
+            } else if status == .authorizedWhenInUse {
                 manager.startMonitoringSignificantLocationChanges()
             }
         }

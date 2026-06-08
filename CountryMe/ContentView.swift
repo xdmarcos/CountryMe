@@ -12,6 +12,38 @@ import CoreLocation
 import UIKit
 #endif
 
+/// How the "needs Always access" banner should guide the user for a given authorization
+/// status.
+///
+/// Extracted into a pure function (`authorizationGuidance(for:)`) so this decision —
+/// including which statuses can still show iOS's own permission prompt versus which can
+/// only be resolved through Settings — is unit-testable without rendering SwiftUI.
+enum AuthorizationGuidance: Equatable {
+    /// `.notDetermined` — the only status where `LocationManager.start()` can still trigger
+    /// an in-app system permission dialog.
+    case promptInApp
+    /// `.authorizedWhenInUse` / `.denied` / `.restricted` — iOS shows the when-in-use →
+    /// always upgrade dialog at most once per app install (and never for denied/restricted),
+    /// so re-prompting here is a silent no-op that would make the button look broken.
+    /// Settings is the only reliable path to "Always" from any of these.
+    case openSettings
+    /// `.authorizedAlways` — already where we need to be; no banner.
+    case none
+}
+
+func authorizationGuidance(for status: CLAuthorizationStatus) -> AuthorizationGuidance {
+    switch status {
+    case .authorizedAlways:
+        return .none
+    case .notDetermined:
+        return .promptInApp
+    case .authorizedWhenInUse, .denied, .restricted:
+        return .openSettings
+    @unknown default:
+        return .openSettings
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.openURL) private var openURL
@@ -31,11 +63,12 @@ struct ContentView: View {
     }
 
     private var authorizationFooter: String {
-        switch locationManager.authorizationStatus {
-        case .denied, .restricted:
-            return "CountryMe needs \"Always\" location access to keep tracking which country you're in, even when the app is closed. Enable it in Settings → Privacy & Security → Location Services → CountryMe."
-        default:
-            return "CountryMe needs \"Always\" location access to keep tracking which country you're in, even when the app is closed."
+        let base = "CountryMe needs \"Always\" location access to keep tracking which country you're in, even when the app is closed."
+        switch authorizationGuidance(for: locationManager.authorizationStatus) {
+        case .openSettings:
+            return base + " Enable it in Settings → Privacy & Security → Location Services → CountryMe."
+        case .promptInApp, .none:
+            return base
         }
     }
 
@@ -89,28 +122,30 @@ struct ContentView: View {
         }
 
         // "Always" is required for proper behavior — significant-change monitoring only keeps
-        // working while the app is suspended/closed under that authorization level. Surface
-        // guidance for every status short of it, not just the in-app-promptable ones: `.denied`
-        // and `.restricted` can't be fixed by re-prompting and need a trip to Settings instead.
-        if locationManager.authorizationStatus != .authorizedAlways {
+        // working while the app is suspended/closed under that authorization level.
+        switch authorizationGuidance(for: locationManager.authorizationStatus) {
+        case .promptInApp:
             Section {
-                switch locationManager.authorizationStatus {
-                case .denied, .restricted:
-#if os(iOS)
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            openURL(url)
-                        }
-                    }
-#endif
-                default:
-                    Button("Allow Location Access Always") {
-                        locationManager.start()
-                    }
+                Button("Allow Location Access") {
+                    locationManager.start()
                 }
             } footer: {
                 Text(authorizationFooter)
             }
+        case .openSettings:
+            Section {
+#if os(iOS)
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+#endif
+            } footer: {
+                Text(authorizationFooter)
+            }
+        case .none:
+            EmptyView()
         }
 
 #if DEBUG
