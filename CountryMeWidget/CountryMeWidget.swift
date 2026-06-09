@@ -63,7 +63,7 @@ struct CountryMeWidgetEntryView: View {
     }
 
     private var smallView: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .center, spacing: 4) {
             Text("Current")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -73,19 +73,20 @@ struct CountryMeWidgetEntryView: View {
                 Text(current.countryName)
                     .font(.headline)
                     .lineLimit(1)
+                Text("\(current.dayCount)d")
+                    .foregroundStyle(.secondary)
             } else {
                 Text("No data yet")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var mediumView: some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .center, spacing: 4) {
                 Text("Current")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -95,6 +96,8 @@ struct CountryMeWidgetEntryView: View {
                     Text(current.countryName)
                         .font(.headline)
                         .lineLimit(1)
+                    Text("\(current.dayCount)d")
+                        .foregroundStyle(.secondary)
                 } else {
                     Text("No data yet")
                         .font(.subheadline)
@@ -125,16 +128,18 @@ struct CountryMeWidgetEntryView: View {
     /// list (up to the 8 rows `makeEntry()` provides).
     private var largeView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Text("Current")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Text("Current")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .center, spacing: 6) {
                 if let current = entry.current {
                     Text(current.countryCode.flagEmoji)
                         .font(.system(size: 28))
                     Text(current.countryName)
                         .font(.headline)
                         .lineLimit(1)
+                    Text("\(current.dayCount)d")
+                        .foregroundStyle(.secondary)
                 } else {
                     Text("No data yet")
                         .font(.subheadline)
@@ -142,6 +147,12 @@ struct CountryMeWidgetEntryView: View {
                 }
                 Spacer()
             }
+
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 12)
+
 
             Text("Most Visited")
                 .font(.caption)
