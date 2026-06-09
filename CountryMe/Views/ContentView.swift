@@ -15,21 +15,22 @@ import UIKit
 struct ContentView: View {
     @Environment(LocationManager.self) private var locationManager
     @Environment(\.openURL) private var openURL
-    @Query(sort: \CountryStay.dayCount, order: .reverse) private var stays: [CountryStay]
+    @Query(sort: \CountryStay.day, order: .reverse) private var stays: [CountryStay]
 
     private let viewModel = ContentViewModel()
 
-    /// Drives the macOS detail pane via `List(selection:)`; on iOS, drill-in is handled by
-    /// `NavigationLink`/`navigationDestination` instead and this stays unused.
-    @State private var selection: CountryStay?
+    @State private var selection: CountrySummary?
 
-    /// The country most recently detected — not necessarily the one with the most days.
-    private var current: CountryStay? {
-        viewModel.current(in: stays)
+    private var summaries: [CountrySummary] {
+        viewModel.summaries(from: stays)
     }
 
-    private var topStays: [CountryStay] {
-        viewModel.topStays(in: stays)
+    private var current: CountrySummary? {
+        viewModel.current(in: summaries)
+    }
+
+    private var topStays: [CountrySummary] {
+        viewModel.topStays(in: summaries)
     }
 
     var body: some View {
@@ -39,9 +40,6 @@ struct ContentView: View {
         }
     }
 
-    /// The list of stays, platform-specific only in how taps drive navigation:
-    /// `List(selection:)` + `.tag` feeds the macOS split-view detail pane, while iOS pushes
-    /// via `NavigationLink`/`navigationDestination` inside a `NavigationStack`.
     @ViewBuilder
     private var list: some View {
 #if os(macOS)
@@ -53,8 +51,8 @@ struct ContentView: View {
         List {
             sections
         }
-        .navigationDestination(for: CountryStay.self) { stay in
-            CountryDetailView(stay: stay)
+        .navigationDestination(for: CountrySummary.self) { summary in
+            CountryDetailView(summary: summary)
         }
 #endif
     }
@@ -75,14 +73,12 @@ struct ContentView: View {
                 Text("No data yet.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(topStays) { stay in
-                    row(for: stay)
+                ForEach(topStays) { summary in
+                    row(for: summary)
                 }
             }
         }
 
-        // "Always" is required for proper behavior — significant-change monitoring only keeps
-        // working while the app is suspended/closed under that authorization level.
         switch viewModel.guidance(for: locationManager.authorizationStatus) {
         case .promptInApp:
             Section {
@@ -109,9 +105,6 @@ struct ContentView: View {
         }
 
 #if DEBUG
-        // DEV-ONLY — remove before shipping. Surfaces background-tracking internals
-        // (last detection time, last error) so behavior on a real device is observable
-        // without attaching a debugger.
         Section("Debug — Background Tracking") {
             LabeledContent("Authorization", value: "\(locationManager.authorizationStatus)")
             if let current {
@@ -127,33 +120,29 @@ struct ContentView: View {
 #endif
     }
 
-    /// A tappable row for `stay`: tagged for `List` selection on macOS (feeds the split-view
-    /// detail pane), or a `NavigationLink` push on iOS/visionOS (no split view there).
     @ViewBuilder
-    private func row(for stay: CountryStay) -> some View {
+    private func row(for summary: CountrySummary) -> some View {
 #if os(macOS)
-        CountryRow(stay: stay)
-            .tag(stay)
+        CountryRow(summary: summary)
+            .tag(summary)
 #else
-        NavigationLink(value: stay) {
-            CountryRow(stay: stay)
+        NavigationLink(value: summary) {
+            CountryRow(summary: summary)
         }
 #endif
     }
 }
 
-/// A single country's flag, name, and day count — shared by the "current" and "most visited"
-/// sections.
 private struct CountryRow: View {
-    let stay: CountryStay
+    let summary: CountrySummary
 
     var body: some View {
         HStack {
-            Text(stay.countryCode.flagEmoji)
+            Text(summary.countryCode.flagEmoji)
                 .font(.title2)
             VStack(alignment: .leading) {
-                Text(stay.countryName)
-                Text("\(stay.dayCount) day\(stay.dayCount == 1 ? "" : "s")")
+                Text(summary.countryName)
+                Text("\(summary.dayCount) day\(summary.dayCount == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -163,7 +152,7 @@ private struct CountryRow: View {
 }
 
 fileprivate struct NavigationViewWrapper<Content: View>: View {
-    @Binding var selection: CountryStay?
+    @Binding var selection: CountrySummary?
     let content: () -> Content
 
     var body: some View {
@@ -172,7 +161,7 @@ fileprivate struct NavigationViewWrapper<Content: View>: View {
             content()
         } detail: {
             if let selection {
-                CountryDetailView(stay: selection)
+                CountryDetailView(summary: selection)
             } else {
                 Text("Select a country")
             }

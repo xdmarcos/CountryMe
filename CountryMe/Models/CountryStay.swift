@@ -9,96 +9,86 @@ import CoreLocation
 import Foundation
 import SwiftData
 
-/// Tracks how many distinct calendar days the user has been detected in a given country.
+/// One record per distinct calendar day the user was detected in a given country.
 ///
-/// CloudKit-compatible SwiftData model: every stored property has a default value, and
-/// there are no `@Attribute(.unique)` constraints (CloudKit private databases don't support
-/// them). Uniqueness by `countryCode` is enforced in code via `recordDetection`.
+/// CloudKit-compatible: every stored property has a default value, no `@Attribute(.unique)`
+/// constraints. Uniqueness by `(countryCode, day)` is enforced in code via `recordDetection`.
 @Model
 final class CountryStay {
-    /// ISO 3166-1 alpha-2 country code, e.g. "ES".
+    #Index<CountryStay>([\.countryCode], [\.day], [\.countryCode, \.day])
+
     var countryCode: String = ""
-    /// Localized display name, e.g. "Spain".
     var countryName: String = ""
-    /// Number of distinct calendar days this country has been detected.
-    ///
-    /// Stored (denormalized) rather than derived from `visitDays.count` so existing sort
-    /// descriptors (`@Query`, the widget's `FetchDescriptor`) keep working without loading
-    /// relationships, and so historical totals survive even for countries seen before
-    /// per-day history existed. `recordDetection` keeps the two in lockstep going forward.
-    var dayCount: Int = 0
-    var firstSeen: Date = Date.distantPast
-    var lastSeen: Date = Date.distantPast
-    /// Per-day history, one row per distinct calendar day this country was detected.
-    ///
-    /// Optional to-many with an explicit inverse — required for CloudKit-compatible SwiftData
-    /// models (relationships can't be required). Forward-only: rows recorded before this
-    /// relationship existed have no `VisitDay` entries even though their `dayCount` reflects
-    /// days seen at the time.
-    @Relationship(deleteRule: .cascade, inverse: \VisitDay.country)
-    var visitDays: [VisitDay]? = []
-
-    init(
-        countryCode: String = "",
-        countryName: String = "",
-        dayCount: Int = 0,
-        firstSeen: Date = .distantPast,
-        lastSeen: Date = .distantPast
-    ) {
-        self.countryCode = countryCode
-        self.countryName = countryName
-        self.dayCount = dayCount
-        self.firstSeen = firstSeen
-        self.lastSeen = lastSeen
-    }
-}
-
-/// A single distinct calendar day on which a country was detected.
-///
-/// Child of `CountryStay.visitDays`, created by `recordDetection` whenever a detection
-/// increments `dayCount` (i.e. the first detection of that country on a given calendar day).
-/// CloudKit-compatible: defaulted properties, optional inverse relationship, no uniqueness
-/// constraint (uniqueness-by-day-per-country is enforced in code by `recordDetection`, which
-/// only appends when `dayCount` itself increments).
-@Model
-final class VisitDay {
-    /// Start-of-day (calendar-normalized) timestamp this country was detected on.
+    /// Start-of-day (calendar-normalised) timestamp for this detection.
     var day: Date = Date.distantPast
-    /// Where this detection occurred, decomposed into `Double` components — `CLLocationCoordinate2D`
-    /// itself isn't `Codable`/storable in SwiftData. `(0, 0)` (off the coast of Ghana) is the
-    /// "not recorded" sentinel for rows created before this existed, mirroring `CountryStay`'s
-    /// use of `.distantPast` for unknown dates. Recorded so a detection can later be checked
-    /// against the claimed country's actual borders — reverse geocoding can misattribute points
-    /// near coastlines and land borders.
+    /// Where this detection occurred — decomposed into `Double` because `CLLocationCoordinate2D`
+    /// isn't Codable/SwiftData-storable. `(0, 0)` is the "not recorded" sentinel.
     var latitude: Double = 0
     var longitude: Double = 0
-    var country: CountryStay?
 
-    /// Convenience view of `latitude`/`longitude` for use with CoreLocation/MapKit APIs.
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
+    /// `false` when the coordinate is the `(0, 0)` sentinel meaning "not recorded".
+    var hasCoordinate: Bool {
+        latitude != 0 || longitude != 0
+    }
+
     init(
+        countryCode: String = "",
+        countryName: String = "",
         day: Date = .distantPast,
-        coordinate: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 0, longitude: 0),
-        country: CountryStay? = nil
+        coordinate: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 0, longitude: 0)
     ) {
+        self.countryCode = countryCode
+        self.countryName = countryName
         self.day = day
         self.latitude = coordinate.latitude
         self.longitude = coordinate.longitude
-        self.country = country
     }
 }
 
-/// Records a country detection, inserting a new `CountryStay` or updating the existing one
-/// for that country code.
+/// Computed aggregate of all `CountryStay` records for a single country.
 ///
-/// `dayCount` is incremented only the first time a country is seen on a given calendar day —
-/// repeated detections on the same day update `lastSeen` but don't inflate the count. Kept as
-/// a free function (rather than buried in `LocationManager`) so it can be unit tested with an
-/// in-memory `ModelContext` without any location-services involvement — `coordinate` is a
-/// plain value type, trivial to construct in tests without `CLLocationManager`/permissions.
+/// Built from a flat `[CountryStay]` array via `[CountryStay].summaries()` — not a SwiftData
+/// model, purely a view-layer type. Defined here so both the app and the widget extension
+/// can use it (this file is compiled into both targets).
+struct CountrySummary: Identifiable, Hashable {
+    var id: String { countryCode }
+    let countryCode: String
+    let countryName: String
+    let dayCount: Int
+    let firstSeen: Date
+    let lastSeen: Date
+}
+
+extension [CountryStay] {
+    /// Groups the receiver by `countryCode` and returns one `CountrySummary` per country,
+    /// sorted by `dayCount` descending. Used by both `ContentViewModel` and the widget.
+    func summaries() -> [CountrySummary] {
+        let grouped = Dictionary(grouping: self, by: \.countryCode)
+        return grouped.compactMap { code, group -> CountrySummary? in
+            guard let name = group.first?.countryName else { return nil }
+            return CountrySummary(
+                countryCode: code,
+                countryName: name,
+                dayCount: group.count,
+                firstSeen: group.map(\.day).min() ?? .distantPast,
+                lastSeen: group.map(\.day).max() ?? .distantPast
+            )
+        }.sorted { $0.dayCount > $1.dayCount }
+    }
+}
+
+// MARK: - Free functions
+
+/// Records a single-day detection for a country.
+///
+/// Idempotent: calling it multiple times for the same `(countryCode, date)` produces exactly
+/// one `CountryStay` row — subsequent calls on the same calendar day return the existing
+/// record unchanged. This makes it safe to call from both the location stream and from
+/// `fillMissingDays` without risk of double-counting.
 @discardableResult
 func recordDetection(
     countryCode: String,
@@ -108,34 +98,68 @@ func recordDetection(
     in context: ModelContext,
     calendar: Calendar = .current
 ) throws -> CountryStay {
-    let predicate = #Predicate<CountryStay> { $0.countryCode == countryCode }
+    let startOfDay = calendar.startOfDay(for: date)
+    let predicate = #Predicate<CountryStay> { $0.countryCode == countryCode && $0.day == startOfDay }
     var descriptor = FetchDescriptor<CountryStay>(predicate: predicate)
     descriptor.fetchLimit = 1
 
     if let existing = try context.fetch(descriptor).first {
-        if !calendar.isDate(existing.lastSeen, inSameDayAs: date) {
-            existing.dayCount += 1
-            let visitDay = VisitDay(day: calendar.startOfDay(for: date), coordinate: coordinate, country: existing)
-            context.insert(visitDay)
-            existing.visitDays?.append(visitDay)
-        }
-        existing.lastSeen = date
         if !countryName.isEmpty {
             existing.countryName = countryName
         }
         return existing
-    } else {
-        let stay = CountryStay(
-            countryCode: countryCode,
-            countryName: countryName,
-            dayCount: 1,
-            firstSeen: date,
-            lastSeen: date
+    }
+
+    let stay = CountryStay(
+        countryCode: countryCode,
+        countryName: countryName,
+        day: startOfDay,
+        coordinate: coordinate
+    )
+    context.insert(stay)
+    return stay
+}
+
+/// Deletes every `CountryStay` for `code` and saves the context so the deletion is committed
+/// to the local store and picked up by CloudKit sync. Calling this is the only step needed —
+/// SwiftData's CloudKit integration propagates the deletion automatically on save.
+func deleteHistory(for code: String, in context: ModelContext) throws {
+    let predicate = #Predicate<CountryStay> { $0.countryCode == code }
+    let stays = try context.fetch(FetchDescriptor<CountryStay>(predicate: predicate))
+    stays.forEach { context.delete($0) }
+    try context.save()
+}
+
+/// Fills in any calendar days that elapsed since the most-recent stay without a new detection.
+///
+/// Handles the stationary case: if the user didn't move overnight there is no location event
+/// and no `CountryStay` is inserted for the new day. Called every time the app becomes active.
+/// Safe to call repeatedly — a no-op when the most-recent stay is already today, or when no
+/// stays exist yet.
+func fillMissingDays(
+    upTo date: Date = .now,
+    in context: ModelContext,
+    calendar: Calendar = .current
+) throws {
+    var descriptor = FetchDescriptor<CountryStay>(sortBy: [SortDescriptor(\.day, order: .reverse)])
+    descriptor.fetchLimit = 1
+    guard let mostRecent = try context.fetch(descriptor).first,
+          mostRecent.day > .distantPast,
+          !calendar.isDate(mostRecent.day, inSameDayAs: date) else {
+        return
+    }
+    var day = calendar.date(byAdding: .day, value: 1, to: mostRecent.day)!
+    let targetDay = calendar.startOfDay(for: date)
+    while day <= targetDay {
+        try recordDetection(
+            countryCode: mostRecent.countryCode,
+            countryName: mostRecent.countryName,
+            coordinate: mostRecent.coordinate,
+            date: day,
+            in: context,
+            calendar: calendar
         )
-        context.insert(stay)
-        let visitDay = VisitDay(day: calendar.startOfDay(for: date), coordinate: coordinate, country: stay)
-        context.insert(visitDay)
-        stay.visitDays?.append(visitDay)
-        return stay
+        guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+        day = next
     }
 }

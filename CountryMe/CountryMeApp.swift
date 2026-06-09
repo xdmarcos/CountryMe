@@ -11,6 +11,7 @@ import SwiftData
 @main
 struct CountryMeApp: App {
     @State private var locationManager = LocationManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -19,5 +20,10 @@ struct CountryMeApp: App {
                 .onAppear { locationManager.start() }
         }
         .modelContainer(SharedModelContainer.shared)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                locationManager.checkDayRollover()
+            }
+        }
     }
 }

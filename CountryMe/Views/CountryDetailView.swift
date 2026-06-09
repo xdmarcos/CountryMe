@@ -7,30 +7,36 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
 
-/// Drill-in detail screen for a single country: summary stats plus, where available, a
-/// day-by-day history.
-///
-/// `visitDays` only exists going forward from when per-day history was introduced — countries
-/// detected before that still show an accurate `dayCount` but may have a sparse or empty
-/// history list. That's expected, not a bug; the empty-state message below explains it.
 struct CountryDetailView: View {
     private let viewModel: CountryDetailViewModel
+    @Query private var days: [CountryStay]
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingDeleteConfirmation = false
+    @State private var selectedDay: CountryStay?
 
-    init(stay: CountryStay) {
-        viewModel = CountryDetailViewModel(stay: stay)
+    init(summary: CountrySummary) {
+        viewModel = CountryDetailViewModel(summary: summary)
+        let code = summary.countryCode
+        _days = Query(
+            filter: #Predicate<CountryStay> { $0.countryCode == code },
+            sort: \CountryStay.day,
+            order: .reverse
+        )
     }
 
-    private var stay: CountryStay { viewModel.stay }
+    private var summary: CountrySummary { viewModel.summary }
 
     var body: some View {
         List {
             Section {
                 HStack(spacing: 16) {
-                    Text(stay.countryCode.flagEmoji)
+                    Text(summary.countryCode.flagEmoji)
                         .font(.system(size: 56))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(stay.countryName)
+                        Text(summary.countryName)
                             .font(.title2.bold())
                         Text(viewModel.dayCountSummary)
                             .font(.subheadline)
@@ -41,40 +47,128 @@ struct CountryDetailView: View {
             }
 
             Section("Summary") {
-                LabeledContent("First seen", value: stay.firstSeen.formatted(date: .abbreviated, time: .omitted))
-                LabeledContent("Last seen", value: stay.lastSeen.formatted(date: .abbreviated, time: .omitted))
+                LabeledContent("First seen", value: summary.firstSeen.formatted(date: .abbreviated, time: .omitted))
+                LabeledContent("Last seen", value: summary.lastSeen.formatted(date: .abbreviated, time: .omitted))
                 LabeledContent("Span", value: viewModel.spanSummary)
             }
 
             Section("History") {
-                if viewModel.sortedVisitDays.isEmpty {
-                    Text("No day-by-day history recorded yet — CountryMe only started keeping a detailed log recently, so older stays only have a running total.")
+                if days.isEmpty {
+                    Text("No history recorded yet.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(viewModel.sortedVisitDays) { visitDay in
-                        Text(visitDay.day.formatted(date: .complete, time: .omitted))
+                    ForEach(days) { day in
+                        DayHistoryRow(day: day) {
+                            selectedDay = day
+                        }
                     }
                 }
             }
+
+            Section {
+                Button("Delete All History", role: .destructive) {
+                    showingDeleteConfirmation = true
+                }
+            }
+            .confirmationDialog(
+                "Delete all history for \(summary.countryName)?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete History", role: .destructive) {
+                    deleteAllHistory()
+                }
+            } message: {
+                Text("This will permanently remove all \(summary.dayCount) day\(summary.dayCount == 1 ? "" : "s") recorded for \(summary.countryName).")
+            }
         }
-        .navigationTitle(stay.countryName)
+        .navigationTitle(summary.countryName)
 #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
 #endif
+        .sheet(item: $selectedDay) { day in
+            DayLocationView(day: day)
+        }
+    }
+
+    private func deleteAllHistory() {
+        try? deleteHistory(for: summary.countryCode, in: modelContext)
+        dismiss()
+    }
+}
+
+// MARK: - History row
+
+private struct DayHistoryRow: View {
+    let day: CountryStay
+    let onLocationTap: () -> Void
+
+    var body: some View {
+        HStack {
+            Text(day.day.formatted(date: .complete, time: .omitted))
+            Spacer()
+            Button(action: onLocationTap) {
+                Image(systemName: "location.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - Full-screen location
+
+private struct DayLocationView: View {
+    let day: CountryStay
+    @Environment(\.dismiss) private var dismiss
+
+    private var cameraPosition: MapCameraPosition {
+        guard day.hasCoordinate else { return .automatic }
+        return .region(MKCoordinateRegion(
+            center: day.coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        ))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Map(initialPosition: cameraPosition) {
+                if day.hasCoordinate {
+                    Marker(day.day.formatted(date: .abbreviated, time: .omitted), coordinate: day.coordinate)
+                }
+            }
+            .ignoresSafeArea(edges: .bottom)
+            .overlay(alignment: .bottom) {
+                if !day.hasCoordinate {
+                    Text("No precise location recorded for this day.")
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.bottom, 32)
+                }
+            }
+            .navigationTitle(day.day.formatted(date: .complete, time: .omitted))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 
 #Preview {
     NavigationStack {
-        CountryDetailView(stay: {
-            let stay = CountryStay(countryCode: "ES", countryName: "Spain", dayCount: 3, firstSeen: .now.addingTimeInterval(-86_400 * 5), lastSeen: .now)
-            stay.visitDays = [
-                VisitDay(day: Calendar.current.startOfDay(for: .now), country: stay),
-                VisitDay(day: Calendar.current.startOfDay(for: .now.addingTimeInterval(-86_400 * 2)), country: stay),
-                VisitDay(day: Calendar.current.startOfDay(for: .now.addingTimeInterval(-86_400 * 5)), country: stay)
-            ]
-            return stay
-        }())
+        CountryDetailView(summary: CountrySummary(
+            countryCode: "ES",
+            countryName: "Spain",
+            dayCount: 3,
+            firstSeen: .now.addingTimeInterval(-86_400 * 5),
+            lastSeen: .now
+        ))
     }
+    .modelContainer(for: CountryStay.self, inMemory: true)
 }

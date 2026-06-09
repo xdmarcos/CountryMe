@@ -11,8 +11,8 @@ import SwiftData
 
 struct CountryMeEntry: TimelineEntry {
     let date: Date
-    let current: CountryStay?
-    let topStays: [CountryStay]
+    let current: CountrySummary?
+    let topStays: [CountrySummary]
 }
 
 struct Provider: TimelineProvider {
@@ -31,11 +31,10 @@ struct Provider: TimelineProvider {
 
     private func makeEntry() -> CountryMeEntry {
         let context = ModelContext(SharedModelContainer.shared)
-        let descriptor = FetchDescriptor<CountryStay>(sortBy: [SortDescriptor(\.dayCount, order: .reverse)])
-        let stays = (try? context.fetch(descriptor)) ?? []
-        let current = stays.max { $0.lastSeen < $1.lastSeen }
-        // Keep enough rows for the largest layout (.systemLarge); smaller views slice further.
-        return CountryMeEntry(date: .now, current: current, topStays: Array(stays.prefix(8)))
+        let stays = (try? context.fetch(FetchDescriptor<CountryStay>())) ?? []
+        let summaries = stays.summaries()
+        let current = summaries.max { $0.lastSeen < $1.lastSeen }
+        return CountryMeEntry(date: .now, current: current, topStays: Array(summaries.prefix(8)))
     }
 }
 
@@ -115,8 +114,8 @@ struct CountryMeWidgetEntryView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(entry.topStays.prefix(3)) { stay in
-                        listRow(for: stay)
+                    ForEach(entry.topStays.prefix(3)) { summary in
+                        listRow(for: summary)
                     }
                 }
             }
@@ -124,8 +123,6 @@ struct CountryMeWidgetEntryView: View {
         }
     }
 
-    /// Wider layout: same "Current" header as medium, but with room for a fuller most-visited
-    /// list (up to the 8 rows `makeEntry()` provides).
     private var largeView: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Current")
@@ -153,7 +150,6 @@ struct CountryMeWidgetEntryView: View {
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 12)
 
-
             Text("Most Visited")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -163,8 +159,8 @@ struct CountryMeWidgetEntryView: View {
                     .foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(entry.topStays) { stay in
-                        listRow(for: stay)
+                    ForEach(entry.topStays) { summary in
+                        listRow(for: summary)
                     }
                 }
             }
@@ -173,22 +169,19 @@ struct CountryMeWidgetEntryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Shared "flag · name · day count" row used by the medium and large most-visited lists.
-    private func listRow(for stay: CountryStay) -> some View {
+    private func listRow(for summary: CountrySummary) -> some View {
         HStack(spacing: 6) {
-            Text(stay.countryCode.flagEmoji)
-            Text(stay.countryName)
+            Text(summary.countryCode.flagEmoji)
+            Text(summary.countryName)
                 .lineLimit(1)
             Spacer()
-            Text("\(stay.dayCount)d")
+            Text("\(summary.dayCount)d")
                 .foregroundStyle(.secondary)
         }
         .font(.subheadline)
     }
 
 #if os(iOS)
-    /// Lock Screen — single line of glanceable text. Accessory families render in a tinted,
-    /// monochrome rendering mode, so flags/colors are dropped in favor of plain text.
     private var inlineAccessoryView: some View {
         Group {
             if let current = entry.current {
@@ -199,7 +192,6 @@ struct CountryMeWidgetEntryView: View {
         }
     }
 
-    /// Lock Screen — small circular gauge-style badge: flag plus total day count.
     private var circularAccessoryView: some View {
         VStack(spacing: 0) {
             if let current = entry.current {
@@ -215,7 +207,6 @@ struct CountryMeWidgetEntryView: View {
         .containerBackground(.clear, for: .widget)
     }
 
-    /// Lock Screen — compact rectangle: current country plus its day count.
     private var rectangularAccessoryView: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("CountryMe")
@@ -252,8 +243,6 @@ struct CountryMeWidget: Widget {
         .supportedFamilies(supportedFamilies)
     }
 
-    /// Home Screen sizes are supported everywhere; Lock Screen accessory families are
-    /// iOS/watchOS-only (unavailable on macOS), so they're added conditionally.
     private var supportedFamilies: [WidgetFamily] {
         var families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge]
 #if os(iOS)

@@ -8,7 +8,7 @@
 import Foundation
 import SwiftData
 
-/// Version 1 of the CountryMe SwiftData schema: `CountryStay` and its per-day `VisitDay` history.
+/// Version 1 of the CountryMe SwiftData schema: one `CountryStay` per `(countryCode, day)`.
 ///
 /// Pinning the current models to an explicit `VersionedSchema` (rather than handing them to
 /// `Schema` directly) is what lets `CountryMeMigrationPlan` describe how to move to future
@@ -19,7 +19,7 @@ enum CountryMeSchemaV1: VersionedSchema {
     static let versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [CountryStay.self, VisitDay.self]
+        [CountryStay.self]
     }
 }
 

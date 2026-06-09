@@ -128,6 +128,23 @@ final class LocationManager: NSObject {
         #endif
     }
 
+    /// Fills in any calendar days that elapsed since the last recorded detection without a
+    /// significant-location-change event — i.e. the user stayed in the same country overnight.
+    ///
+    /// Called every time the app comes to the foreground (via the App's `scenePhase` observer)
+    /// so a stationary user always sees an up-to-date day count without waiting for a location
+    /// event that may never arrive.
+    func checkDayRollover() {
+        let context = ModelContext(modelContainer)
+        do {
+            try fillMissingDays(in: context)
+            try context.save()
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     #if os(iOS)
     /// The single consumer of `events` — applies every authorization change, location, and
     /// error on the main actor, in arrival order. Replaces the old per-callback `Task { @MainActor
