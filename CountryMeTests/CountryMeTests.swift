@@ -225,6 +225,83 @@ struct CountryMeTests {
         #expect(try stayCount(for: "ES") == 1)
     }
 
+    // MARK: - Repeated widget refreshes (idempotency)
+
+    /// The widget calls `fillMissingDays` on every timeline refresh (~every 15 minutes), so a
+    /// stationary user can trigger it dozens of times on the same calendar day. Once the
+    /// rollover stay for "today" exists, every subsequent call must be a no-op.
+    @Test func repeatedFillMissingDaysOnSameDayDoesNotDuplicate() throws {
+        let yesterday   = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 14)))
+        let justAfterMidnight = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 9, hour: 0, minute: 5)))
+        let laterToday  = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 9, hour: 12)))
+
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: yesterday, in: context, calendar: calendar)
+
+        // Simulate several widget refreshes after midnight, all on the same new day.
+        try fillMissingDays(upTo: justAfterMidnight, in: context, calendar: calendar)
+        try fillMissingDays(upTo: laterToday, in: context, calendar: calendar)
+        try fillMissingDays(upTo: laterToday, in: context, calendar: calendar)
+
+        #expect(try stayCount(for: "ES") == 2, "Yesterday + today only — repeated refreshes must not duplicate today's stay")
+    }
+
+    /// Simulates one widget refresh per day over several days with no app launch and no new
+    /// location event — each day must contribute exactly one stay for the same country.
+    @Test func repeatedFillMissingDaysAcrossSeveralDaysProducesOneStayPerDay() throws {
+        let day1 = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 6, hour: 9)))
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: day1, in: context, calendar: calendar)
+
+        for day in 7...10 {
+            let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: day, hour: 9)))
+            // A widget refresh that catches up, followed immediately by a second refresh the
+            // same day (e.g. the next 15-minute tick).
+            try fillMissingDays(upTo: date, in: context, calendar: calendar)
+            try fillMissingDays(upTo: date, in: context, calendar: calendar)
+        }
+
+        #expect(try stayCount(for: "ES") == 5, "Expected exactly one stay per day for June 6–10")
+    }
+
+    /// Mirrors the production widget code path: each refresh opens a *fresh* `ModelContext`
+    /// against the shared store and saves immediately. Idempotency must hold across context
+    /// boundaries, not just within a single in-memory context.
+    @Test func widgetRefreshFromFreshContextEachTimeRemainsIdempotent() throws {
+        let yesterday = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 14)))
+        let today     = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 9, hour: 9)))
+
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: yesterday, in: context, calendar: calendar)
+        try context.save()
+
+        for _ in 0..<3 {
+            let refreshContext = ModelContext(context.container)
+            try fillMissingDays(upTo: today, in: refreshContext, calendar: calendar)
+            try refreshContext.save()
+        }
+
+        #expect(try stayCount(for: "ES") == 2, "Three independent widget refreshes must still leave exactly one stay for today")
+    }
+
+    /// While the user stays in the same country, location-triggered detections and
+    /// widget-triggered rollovers must combine into exactly one stay per calendar day.
+    @Test func sameCountryStayProducesOneEntryPerDayAcrossLocationAndWidgetRefreshes() throws {
+        let day1Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 8)))
+        let day1Evening = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 8, hour: 20)))
+        let day2Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 9, hour: 8)))
+
+        // Two location detections on day 1, both in Spain.
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: day1Morning, in: context, calendar: calendar)
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: day1Evening, in: context, calendar: calendar)
+
+        // Widget refreshes overnight, before any new location event arrives on day 2.
+        try fillMissingDays(upTo: day2Morning, in: context, calendar: calendar)
+        try fillMissingDays(upTo: day2Morning, in: context, calendar: calendar) // second refresh, same day
+
+        // A location detection later on day 2, still in Spain.
+        try recordDetection(countryCode: "ES", countryName: "Spain", date: day2Morning, in: context, calendar: calendar)
+
+        #expect(try stayCount(for: "ES") == 2, "Expected exactly one stay each for June 8 and June 9")
+    }
+
     // MARK: - Coordinate invariant
 
     /// Asserts every `CountryStay` in the store carries a valid coordinate.

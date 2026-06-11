@@ -31,6 +31,11 @@ struct Provider: TimelineProvider {
 
     private func makeEntry() -> CountryMeEntry {
         let context = ModelContext(SharedModelContainer.shared)
+        // Mirrors LocationManager.checkDayRollover(): backfill any days that elapsed since the
+        // last detection so the count keeps advancing even if the app is never opened — every
+        // timeline refresh becomes a rollover check.
+        try? fillMissingDays(in: context)
+        try? context.save()
         let stays = (try? context.fetch(FetchDescriptor<CountryStay>())) ?? []
         let summaries = stays.summaries()
         let current = summaries.max { $0.lastSeen < $1.lastSeen }
